@@ -1,0 +1,21 @@
+# Ignora cartelle specifiche di Python
+/__pycache__/
+*.pyc
+
+# Ignora file di configurazione locali
+.idea/
+*.log
+*.swp
+
+# Ignora ambienti virtuali Python
+**/venv/
+**/.venv/
+.env/
+**/env/
+**/virtualenv/
+*:Zone.Identifier
+
+# Ignora file
+*.pt
+
+Assets/*
