@@ -67,12 +67,10 @@ def evaluate_model(
         - "MAPE": Mean Absolute Percentage Error.
     """
     if path is None:
-        # Percorso del file main.py
         current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Percorso alla cartella "Assets" nella directory "KNN Regression"
-        assets_dir = os.path.join(current_dir, 'Assets')
-        path=os.path.join(assets_dir, 'results')
+        project_dir = os.path.dirname(current_dir)
+        assets_dir = os.path.join(project_dir, 'Assets')
+        path = os.path.join(assets_dir, 'results')
 
     # Convalida le predizioni e i valori target
     y_true, y_pred = validate_predictions(y_true, y_pred)
@@ -134,9 +132,6 @@ def validate_predictions(y_true, y_pred):
     # Verifica che abbiano la stessa lunghezza
     assert len(y_true) == len(
         y_pred), f"Errore: y_true e y_pred devono avere la stessa lunghezza. Lunghezza di y_true: {len(y_true)}, Lunghezza di y_pred: {len(y_pred)}"
-
-    # Verifica che i tipi di dato siano consistenti
-    assert y_true.dtype == y_pred.dtype, f"Errore: y_true e y_pred devono essere dello stesso tipo. Tipo di y_true: {y_true.dtype}, Tipo di y_pred: {y_pred.dtype}"
 
     # Verifica che y_true e y_pred contengano solo valori numerici
     assert np.issubdtype(y_true.dtype, np.number), "Errore: y_true deve contenere solo valori numerici."

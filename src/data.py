@@ -1,11 +1,10 @@
 import os
-from typing import Optional, Tuple 
+from typing import Optional, Tuple
 from ucimlrepo import fetch_ucirepo
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import numpy as np
-from sklearn.utils import shuffle
 
 
 def fetch_data(assets_dir: str = "") -> Tuple[pd.DataFrame, pd.Series]:
@@ -62,36 +61,30 @@ def edit_dataset(
     - Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[StandardScaler], Optional[StandardScaler]]:
     X_train, X_test, y_train, y_test, e gli scaler (se usati).
     """
-    x_scaler = None  # Inizializzo gli scaler a None
+    x_scaler = None
+
+    # Split prima del preprocessing: evita data leakage.
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        random_state=42,
+    )
 
     if X_standardization:
-        # Standardizzazione delle feature con z-score normalization
         x_scaler = StandardScaler()
-        columns = X.columns
-        X = x_scaler.fit_transform(X)
-        X = pd.DataFrame(X, columns=columns)
-        # # Z-Score Normalization
-        # X = (X - X.mean(axis=0)) / X.std(axis=0)
+        columns = X_train.columns
+        X_train = pd.DataFrame(x_scaler.fit_transform(X_train), columns=columns, index=X_train.index)
+        X_test = pd.DataFrame(x_scaler.transform(X_test), columns=columns, index=X_test.index)
 
-
-    # X, y = remove_outliers_quantile(X, y)
-    # Crea un indice casuale per il shuffle
-    # indices = np.arange(X.shape[0])
-    # np.random.shuffle(indices)
-    #
-    # # Mescola gli array X e y in base all'indice casuale
-    # X = X[indices]
-    # y = y[indices]
-    # Suddivisione in train (80%) e test (20%)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-    if not os.path.exists(f'{assets_dir}/CCPP.csv'):
-        # Crea un DataFrame unendo X e y
-        df = pd.DataFrame(X, columns=X.columns)
-        df['target'] = y
-        # Salva in CSV
-        csv_file = os.path.join(assets_dir, f'CCPP_standardized.csv')
-        df.to_csv(csv_file, index=False)
-        print(f"Dataset salvato in {csv_file}")
+        if assets_dir:
+            standardized_path = os.path.join(assets_dir, 'CCPP_standardized.csv')
+            if not os.path.exists(standardized_path):
+                X_full = pd.DataFrame(x_scaler.transform(X), columns=columns, index=X.index)
+                df = X_full.copy()
+                df['target'] = y
+                df.to_csv(standardized_path, index=False)
+                print(f"Dataset salvato in {standardized_path}")
     
 
 

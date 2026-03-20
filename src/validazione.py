@@ -1,13 +1,14 @@
 from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import pandas as pd
 from typing import Dict, Union, Tuple
-from knn_parallel import KNN_Parallel
-import valutazione
+from .knn_parallel import KNN_Parallel
+from . import valutazione
 
 
 class KFoldValidation:
-    def __init__(self, model, k_folds: int = 5) -> None:
+    def __init__(self, model, k_folds: int = 5, standardize_X: bool = False) -> None:
         """
         Inizializza la classe di validazione incrociata K-Fold.
 
@@ -17,6 +18,7 @@ class KFoldValidation:
         """
         self.model: KNN_Parallel = model
         self.k_folds = k_folds
+        self.standardize_X = standardize_X
         self.evaluate = valutazione.evaluate_model
         
 
@@ -76,6 +78,16 @@ class KFoldValidation:
         for train_index, test_index in kf.split(X):
             X_train, X_test = self._select_data(X, train_index, test_index)
             y_train, y_test = y[train_index], y[test_index]
+
+            if self.standardize_X:
+                scaler = StandardScaler()
+                columns = X_train.columns if isinstance(X_train, pd.DataFrame) else None
+                X_train = scaler.fit_transform(X_train)
+                X_test = scaler.transform(X_test)
+                if columns is not None:
+                    X_train = pd.DataFrame(X_train, columns=columns)
+                    X_test = pd.DataFrame(X_test, columns=columns)
+
             self.model.fit(X_train, y_train)
             y_pred = self.model.predict(X_test)
             mse = valutazione.root_mean_squared_error(y_test, y_pred)
@@ -119,6 +131,15 @@ class KFoldValidation:
                 X_train, X_test = X[train_index], X[test_index]
 
             y_train, y_test = y[train_index], y[test_index]
+
+            if self.standardize_X:
+                scaler = StandardScaler()
+                columns = X_train.columns if isinstance(X_train, pd.DataFrame) else None
+                X_train = scaler.fit_transform(X_train)
+                X_test = scaler.transform(X_test)
+                if columns is not None:
+                    X_train = pd.DataFrame(X_train, columns=columns)
+                    X_test = pd.DataFrame(X_test, columns=columns)
 
             # Addestramento del modello
             self.model.fit(X_train, y_train)

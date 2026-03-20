@@ -3,7 +3,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 current_dir = os.path.dirname(os.path.abspath(__file__))
-assets_dir = os.path.join(current_dir, 'Assets')
+project_dir = os.path.dirname(current_dir)
+assets_dir = os.path.join(project_dir, 'Assets')
 def minkowski_curve(p, r=1, points=1000):
     """
     Genera i punti di una curva di livello per la distanza di Minkowski

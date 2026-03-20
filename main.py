@@ -1,14 +1,16 @@
 import argparse
+import csv
+import json
 import os
 import time
 
 from sklearn.neighbors import KNeighborsRegressor
 
-from data import fetch_data, edit_dataset
-from knn_parallel import KNN_Parallel
-from plot import plot_predictions, plot_residuals, plot_comparison
-from validazione import KFoldValidation
-from valutazione import *
+from src.data import fetch_data, edit_dataset
+from src.knn_parallel import KNN_Parallel
+from src.plot import plot_predictions, plot_residuals, plot_comparison
+from src.validazione import KFoldValidation
+from src.valutazione import evaluate_model
 
 # Percorso del file main.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +32,8 @@ def str2bool(v):
 
 
 if __name__ == "__main__":
+    os.makedirs(results_dir, exist_ok=True)
+
     # Parser degli argomenti posizionali
     parser = argparse.ArgumentParser(description="KNN with optional standardization and k value.")
     parser.add_argument('--X-standardization', '-X', type=str2bool, nargs='?', default=True,
@@ -58,21 +62,38 @@ if __name__ == "__main__":
     X, y = fetch_data(assets_dir)
     print(f'valore min: {y.min()}\nvalore max: {y.max()}')
 
-    # Manipolazione dataset con opzioni di standardizzazione per X e y
-    X_train, X_test, y_train, y_test, x_scaler = edit_dataset(
+    # Split train/test raw per CV leak-safe.
+    X_train_raw, _, y_train_raw, _, _ = edit_dataset(
+        X,
+        y,
+        X_standardization=False,
+        test_size=test_size,
+    )
+
+    # Split train/test per il training finale.
+    X_train, X_test, y_train, y_test, _ = edit_dataset(
         X,
         y,
         X_standardization=X_standardization,
-        test_size=test_size
+        test_size=test_size,
+        assets_dir=assets_dir,
     )
 
 
 
-    # Validazione incrociata (k-fold) sul set di trai∟ning/validation
+    # Validazione incrociata leak-safe: scaler rifittato ad ogni fold.
     metrix = (
-        KFoldValidation(model=KNN_Parallel(k=n, chunk_size=chunk_size, minkowski=minkowski), k_folds=k_fold)
-        .validate(X_train, y_train))
-    sk_metrix = KFoldValidation(model=KNeighborsRegressor(n_neighbors=n), k_folds=k_fold).validate(X_train, y_train)
+        KFoldValidation(
+            model=KNN_Parallel(k=n, chunk_size=chunk_size, minkowski=minkowski),
+            k_folds=k_fold,
+            standardize_X=X_standardization,
+        ).validate(X_train_raw, y_train_raw)
+    )
+    sk_metrix = KFoldValidation(
+        model=KNeighborsRegressor(n_neighbors=n),
+        k_folds=k_fold,
+        standardize_X=X_standardization,
+    ).validate(X_train_raw, y_train_raw)
 
     def save_results(metrix, filename=''):
         if os.path.exists(results_dir):
@@ -110,20 +131,24 @@ if __name__ == "__main__":
     y_test_pred_sk = knn_regressor.predict(X_test)
     end_time_sk = time.time()
 
-    # Se è stata applicata la standardizzazione su X, esegui l'inverso della trasformazione
-    if x_scaler:
-        X_train_rescaled = x_scaler.inverse_transform(X_train)
-        X_test_rescaled = x_scaler.inverse_transform(X_test)
-    else:
-        X_train_rescaled = X_train
-        X_test_rescaled = X_test
-
     # Valutazione del modello
     print('######## Evaluating my model ########')
-    test_metrix = evaluate_model(y_true=y_test, y_pred=y_test_pred, message="Test Set", savefile=True)
+    test_metrix = evaluate_model(
+        y_true=y_test,
+        y_pred=y_test_pred,
+        message="Test Set",
+        savefile=False,
+        path=results_dir,
+    )
 
     print('######## Evaluating sklearn ########')
-    test_metrix_sk = evaluate_model(y_true=y_test, y_pred=y_test_pred_sk, message="Test Set", savefile=True)
+    test_metrix_sk = evaluate_model(
+        y_true=y_test,
+        y_pred=y_test_pred_sk,
+        message="Test Set",
+        savefile=False,
+        path=results_dir,
+    )
 
     save_results(test_metrix, 'test_knn_parallel')
     save_results(test_metrix_sk, 'test_knn_sklearn')
@@ -135,8 +160,8 @@ if __name__ == "__main__":
     plot_predictions(y_test, y_test_pred_sk, model_name="KNN sklearn", assets_dir=assets_dir)
     plot_residuals(y_test, y_test_pred, model_name="KNN Parallel", assets_dir=assets_dir)
     plot_residuals(y_test, y_test_pred_sk, model_name="KNN sklearn", assets_dir=assets_dir)
-    plot_comparison(metrix, sk_metrix, title='Cross Validation')
-    plot_comparison(test_metrix, test_metrix_sk, title='Test')
+    plot_comparison(metrix, sk_metrix, title='Cross Validation', assets_dir=assets_dir)
+    plot_comparison(test_metrix, test_metrix_sk, title='Test', assets_dir=assets_dir)
 
     # Stampa dei tempi di esecuzione
     print(f'Tempo esecuzione k-NN Parallel: {end_time - start_time}')

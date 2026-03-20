@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Generator, Optional, Union
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
@@ -91,7 +91,7 @@ class KNN_Parallel:
         # Calcolo della predizione come media pesata
         return np.sum(k_nearest_targets * weights_normalized)
 
-    def divide_chunks(self, data: np.ndarray, n: int) -> list:
+    def divide_chunks(self, data: np.ndarray, n: int) -> Generator[np.ndarray, None, None]:
         """
         Divide l'array `data` in blocchi di dimensione `n`.
 
