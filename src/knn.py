@@ -72,8 +72,7 @@ class KNN:
             # Calcolo dei pesi usando l'inverso del quadrato della distanza (aggiungo epsilon per evitare divisioni per zero)
             epsilon = 1e-8
             k_nearest_distances = distances[k_indices]
-            weights = np.where(k_nearest_distances < 1, 1 / (k_nearest_distances ** 2 + 1 + epsilon),
-                               1 / (k_nearest_distances ** 2 + epsilon))
+            weights = 1 / (k_nearest_distances ** 2 + epsilon)
 
             # Normalizzazione dei pesi
             weights_normalized = weights / np.sum(weights)
