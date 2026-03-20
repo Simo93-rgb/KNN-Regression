@@ -53,4 +53,4 @@ plt.ylim(-4.5, 4.5)
 
 plt.tight_layout()
 plt.savefig(f'{assets_dir}/minkowski as p changes.png', format='png', dpi=600, bbox_inches='tight')
-plt.show()
+# plt.show()

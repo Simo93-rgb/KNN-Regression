@@ -4,14 +4,14 @@ Relazione tecnica del progetto di regressione sul dataset Combined Cycle Power P
 - implementazione custom di KNN Regressor parallelizzata (`KNN_Parallel`);
 - baseline con `KNeighborsRegressor` di scikit-learn.
 
-Obiettivo: verificare correttezza metodologica, qualità predittiva e robustezza della pipeline sperimentale, evitando data leakage.
+Obiettivo: descrivere il funzionamento del k-NN regressivo, confrontare implementazione custom e baseline scikit-learn, e valutarne le performance sul dataset CCPP.
 
 ## 1. Obiettivi del progetto
 
 Gli obiettivi principali sono:
 - implementare un regressore k-NN custom con predizione parallela;
 - confrontare prestazioni e comportamento con la baseline scikit-learn;
-- usare una pipeline di valutazione rigorosa (holdout + k-fold);
+- usare una pipeline di valutazione con holdout e k-fold;
 - generare metriche e grafici diagnostici per il confronto tra modelli.
 
 ## 2. Cenni teorici
@@ -44,7 +44,7 @@ $$
 - Task: regressione del target di output energetico.
 - Feature: variabili numeriche continue.
 
-Il dataset viene scaricato (se assente) e salvato in `Assets/CCPP.csv`.
+Il dataset viene scaricato (se assente) e salvato in `assets/CCPP.csv`.
 
 ## 4. Architettura del progetto
 
@@ -59,7 +59,7 @@ Il progetto ha logica applicativa in `src/` e entrypoint esterno:
 - `src/plot.py`: grafici predizioni, residui e confronto metriche.
 - `src/plot_distances.py`: visualizzazione delle curve di Minkowski.
 
-Output sperimentali in `Assets/results/`.
+Output sperimentali in `assets/results/`.
 
 ## 5. Pipeline sperimentale
 
@@ -68,10 +68,9 @@ flowchart TD
 	A[Dataset grezzo] --> B[Train/Test split]
 	B --> C[Train]
 	B --> D[Test holdout]
-	C --> E[K-Fold CV leak-safe]
-	E --> F[Fit scaler su train_fold]
-	F --> G[Transform val_fold + train/predict]
-	G --> H[Metriche medie CV]
+	C --> E[K-Fold CV]
+	E --> F[Training e valutazione su fold]
+	F --> G[Metriche medie CV]
 	C --> I[Fit finale modello]
 	I --> J[Predizione su test holdout]
 	J --> K[Metriche test + grafici + salvataggio risultati]
@@ -103,9 +102,72 @@ Configurazione dell'ultima run di controllo:
 Interpretazione sintetica:
 - i due modelli sono molto vicini;
 - il modello custom risulta competitivo sulla configurazione testata;
-- il refactor non ha degradato le performance osservate.
+- il confronto conferma coerenza tra approccio custom e baseline.
 
-## 7. Riproducibilita
+## 7. Analisi grafica
+
+### 7.1 Distanza di Minkowski al variare di p
+
+<div style="text-align: center;">
+    <img src="assets/minkowski%20as%20p%20changes.png" alt="Minkowski al variare di p" style="width: 50%; height: auto;">
+</div>
+
+### 7.2 Residui dei due modelli
+
+<div align="center" style="margin-top: 10px; margin-bottom: 10px;">
+    <img src="assets/results/residuals_KNN%20Parallel.png" alt="Residuals KNN Parallel" width="45%" style="display: inline-block; vertical-align: middle; margin: 5px;">
+    <img src="assets/results/residuals_KNN%20sklearn.png" alt="Residuals KNN sklearn" width="45%" style="display: inline-block; vertical-align: middle; margin: 5px;">
+</div>
+
+### 7.3 Confronto metriche aggregate
+
+<div style="display: flex; justify-content: space-around; align-items: stretch; gap: 10px; margin-top: 10px;">
+    <div style="text-align: center; width: 48%;">
+        <p>Confronto in cross-validation:</p>
+        <img src="assets/results/comparison_Cross%20Validation.png" alt="Confronto metriche Cross Validation" style="width: 100%; height: auto;">
+    </div>
+    <div style="text-align: center; width: 48%;">
+        <p>Confronto su test holdout:</p>
+        <img src="assets/results/comparison_Test.png" alt="Confronto metriche Test" style="width: 100%; height: auto;">
+    </div>
+</div>
+
+
+## 8. Argomenti da riga di comando
+
+Per vedere guida e argomenti disponibili:
+
+```bash
+uv run python main.py --help-args
+```
+
+Argomenti principali:
+
+| Argomento | Tipo | Significato |
+|---|---|---|
+| `-X`, `--X-standardization` | bool | Abilita/disabilita la standardizzazione delle feature prima del training. |
+| `-n`, `--n-neighbours` | int | Numero di vicini usato da k-NN. |
+| `-t`, `--test-size` | float | Frazione del dataset da usare come test holdout. |
+| `-k`, `--k-fold` | int | Numero di fold per la cross-validation. |
+| `-p`, `--minkowski` | int | Ordine $p$ della distanza di Minkowski ($p=1$ Manhattan, $p=2$ Euclidea). |
+| `--auto-tune` | flag | Esegue una ricerca automatica di `k` e `p` sul modello custom via cross-validation. |
+| `--help-args` | flag | Stampa una guida estesa degli argomenti e termina. |
+
+Esempio completo:
+
+```bash
+uv run python main.py -X true -n 6 -t 0.2 -k 10 -p 2
+```
+
+Esempio con tuning automatico:
+
+```bash
+uv run python main.py --auto-tune
+```
+
+Nota: durante il tuning non vengono generati plot intermedi; i plot vengono salvati solo al termine dell'esecuzione.
+
+## 9. Riproducibilita
 
 Dipendenze principali:
 - numpy
@@ -122,14 +184,8 @@ Esecuzione standard:
 uv run python main.py
 ```
 
-Esecuzione con parametri espliciti:
+## 10. Conclusioni
 
-```bash
-uv run python main.py -X true -n 6 -t 0.2 -k 10 -p 2
-```
+Il progetto mostra che una implementazione custom di k-NN regressivo puo raggiungere risultati allineati a una baseline consolidata.
 
-## 8. Conclusioni
-
-Il progetto mostra che una implementazione custom di k-NN regressivo, se supportata da una pipeline corretta e leak-safe, puo raggiungere risultati allineati a una baseline consolidata.
-
-Il refactor in `src/` migliora manutenibilita e chiarezza architetturale, separando orchestrazione (`main.py`) da logica di dominio (`src/*`).
+L'organizzazione con `main.py` come entrypoint e moduli in `src/` mantiene separata l'orchestrazione dalla logica applicativa.
