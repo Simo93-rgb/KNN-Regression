@@ -15,8 +15,8 @@ from src.valutazione import evaluate_model
 # Percorso del file main.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Percorso alla cartella "Assets" nella directory "KNN Regression"
-assets_dir = os.path.join(current_dir, 'Assets')
+# Percorso alla cartella "assets" nella directory "KNN Regression"
+assets_dir = os.path.join(current_dir, 'assets')
 results_dir = os.path.join(assets_dir, 'results')
 
 # Funzione per convertire stringhe in booleani
@@ -35,19 +35,39 @@ if __name__ == "__main__":
     os.makedirs(results_dir, exist_ok=True)
 
     # Parser degli argomenti posizionali
-    parser = argparse.ArgumentParser(description="KNN with optional standardization and k value.")
+    parser = argparse.ArgumentParser(
+        description="KNN regression custom vs scikit-learn on CCPP dataset.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument('--X-standardization', '-X', type=str2bool, nargs='?', default=True,
-                        help='Enable/Disable standardization of X (default: True)')
+                        help='Enable/Disable standardization of X')
     parser.add_argument('--n-neighbours', '-n', type=int, nargs='?', default=6,
-                        help='Value of neighbourhood for KNN (default: 6)')
+                        help='Value of neighbourhood for KNN')
     parser.add_argument('--test-size', '-t', type=float, nargs='?', default=0.2,
-                        help='Value of test-size for KNN (default: 0.2)')
+                        help='Value of test-size for KNN')
     parser.add_argument('--k-fold', '-k', type=int, nargs='?', default=10,
-                        help='Value of k for k-fold cross validation (default: 10)')
+                        help='Value of k for k-fold cross validation')
     parser.add_argument('--minkowski', '-p', type=int, nargs='?', default=1,
-                        help='values of p in the minkowski equation (default: 1)')
+                        help='Values of p in the Minkowski distance')
+    parser.add_argument('--auto-tune', action='store_true',
+                        help='Automatically tune k and Minkowski p for the custom model using CV')
+    parser.add_argument('--help-args', action='store_true',
+                        help='Show detailed argument guide and exit')
 
     args = parser.parse_args()
+
+    if args.help_args:
+        parser.print_help()
+        print(
+            "\nGuida rapida:\n"
+            "  -X / --X-standardization : standardizza le feature prima del training\n"
+            "  -n / --n-neighbours      : numero di vicini del KNN\n"
+            "  -t / --test-size         : quota del dataset riservata al test (0-1)\n"
+            "  -k / --k-fold            : numero di fold per cross validation\n"
+            "  -p / --minkowski         : ordine p della distanza di Minkowski (1=Manhattan, 2=Euclidea)\n"
+            "  --auto-tune              : ricerca automatica dei migliori valori di k e p (solo modello custom)\n"
+        )
+        raise SystemExit(0)
 
     # Utilizzo degli argomenti passati
     X_standardization = args.X_standardization
@@ -55,8 +75,12 @@ if __name__ == "__main__":
     test_size = args.test_size
     k_fold = args.k_fold
     minkowski = args.minkowski
+    auto_tune = args.auto_tune
     chunk_size = 50
-    print(f'Args:\nX_standardization = {X_standardization}\nKNN(k={n})\ntest_size = {test_size}\nk-fold = {k_fold}')
+    print(
+        f'Args:\nX_standardization = {X_standardization}\nKNN(k={n}, p={minkowski})\n'
+        f'test_size = {test_size}\nk-fold = {k_fold}\nauto_tune = {auto_tune}'
+    )
 
     # Fetch del dataset Combined Cycle Power Plant
     X, y = fetch_data(assets_dir)
@@ -82,15 +106,25 @@ if __name__ == "__main__":
 
 
     # Validazione incrociata leak-safe: scaler rifittato ad ogni fold.
-    metrix = (
-        KFoldValidation(
-            model=KNN_Parallel(k=n, chunk_size=chunk_size, minkowski=minkowski),
-            k_folds=k_fold,
-            standardize_X=X_standardization,
-        ).validate(X_train_raw, y_train_raw)
+    custom_model_for_cv = KNN_Parallel(k=n, chunk_size=chunk_size, minkowski=minkowski)
+    custom_validator = KFoldValidation(
+        model=custom_model_for_cv,
+        k_folds=k_fold,
+        standardize_X=X_standardization,
     )
+
+    if auto_tune:
+        metrix = custom_validator.validate_and_find_best_hyper_params(X_train_raw, y_train_raw)
+        best_n = int(custom_model_for_cv.n_neighbors)
+        best_minkowski = int(custom_model_for_cv.minkowski)
+        print(f'Auto-tune attivo: uso k={best_n}, p={best_minkowski} per il training finale.')
+    else:
+        metrix = custom_validator.validate(X_train_raw, y_train_raw)
+        best_n = n
+        best_minkowski = minkowski
+
     sk_metrix = KFoldValidation(
-        model=KNeighborsRegressor(n_neighbors=n),
+        model=KNeighborsRegressor(n_neighbors=best_n),
         k_folds=k_fold,
         standardize_X=X_standardization,
     ).validate(X_train_raw, y_train_raw)
@@ -116,8 +150,8 @@ if __name__ == "__main__":
     [print(f"{chiave} su cross validation (k-fold): {valore}") for chiave, valore in sk_metrix.items()]
 
     # Creazione del modello KNN
-    knn = KNN_Parallel(k=n, minkowski=minkowski, chunk_size=chunk_size)
-    knn_regressor = KNeighborsRegressor(n_neighbors=n)
+    knn = KNN_Parallel(k=best_n, minkowski=best_minkowski, chunk_size=chunk_size)
+    knn_regressor = KNeighborsRegressor(n_neighbors=best_n)
 
     # Addestramento finale sul training set completo
     start_time = time.time()

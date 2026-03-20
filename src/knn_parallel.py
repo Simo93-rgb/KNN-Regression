@@ -4,7 +4,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 
 class KNN_Parallel:
-    def __init__(self, k: int = 3, n_jobs: int = -1, minkowski:int = 2, chunk_size:int=1) -> None:
+    def __init__(self, k: int = 12, n_jobs: int = -1, minkowski:int = 1, chunk_size:int=50) -> None:
         """
         Inizializza il modello KNN.
 
@@ -83,7 +83,7 @@ class KNN_Parallel:
         # Calcolo dei pesi usando l'inverso del quadrato della distanza (aggiungo epsilon per evitare divisioni per zero)
         epsilon = 1e-10
         k_nearest_distances = distances[k_indices]
-        weights = np.where(k_nearest_distances < 1, 1 - k_nearest_distances, 1 / (k_nearest_distances ** 2 + epsilon))
+        weights = 1 / (k_nearest_distances ** 2 + epsilon)
 
         # Normalizzazione dei pesi
         weights_normalized = weights / np.sum(weights)

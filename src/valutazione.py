@@ -69,7 +69,7 @@ def evaluate_model(
     if path is None:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_dir = os.path.dirname(current_dir)
-        assets_dir = os.path.join(project_dir, 'Assets')
+        assets_dir = os.path.join(project_dir, 'assets')
         path = os.path.join(assets_dir, 'results')
 
     # Convalida le predizioni e i valori target

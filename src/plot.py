@@ -15,7 +15,7 @@ def _get_results_dir(assets_dir: str = "") -> str:
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(current_dir)
-    return os.path.join(project_dir, "Assets", "results")
+    return os.path.join(project_dir, "assets", "results")
 
 
 def plot_predictions(y_true, y_pred, model_name: str = "", assets_dir: str = "") -> None:
@@ -120,7 +120,7 @@ def plot_rmse_vs_n_neighbors(
     plt.title("RMSE vs Number of Neighbors in KNN")
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.close()
 
 
 def plot_comparison(knn_metrics: dict, knn_sklearn_metrics: dict, title: str, assets_dir: str = "") -> None:
