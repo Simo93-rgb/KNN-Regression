@@ -17,5 +17,5 @@
 
 # Ignora file
 *.pt
-
+.vscode/
 assets/*
